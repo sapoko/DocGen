@@ -14,5 +14,6 @@ spring:
       ddl-auto: validate
   flyway:
     enabled: true
+    placeholder-replacement: false
 server:
   port: 8082

@@ -11,7 +11,7 @@ import lombok.Setter;
 public class SampleField {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private long id;
+    private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "sample_id")
