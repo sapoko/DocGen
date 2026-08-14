@@ -3,6 +3,7 @@ target/
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
+**/src/main/resources/templates/
 
 ### STS ###
 .apt_generated
@@ -31,12 +32,3 @@ build/
 
 ### VS Code ###
 .vscode/
-
-src/main/resources/templates/friday-2.docx
-src/main/resources/templates/friday-3.docx
-src/main/resources/templates/friday-4-1.docx
-src/main/resources/templates/monday-hospital.docx
-src/main/resources/templates/monday-plain.docx
-src/main/resources/templates/monthly.docx
-src/main/resources/templates/thursday.docx
-src/main/resources/templates/wednesday.docx
