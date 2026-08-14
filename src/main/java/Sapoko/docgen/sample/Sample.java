@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -13,7 +14,7 @@ import java.util.List;
 public class Sample {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private long id;
+    private Long id;
 
     private String filePath;
     private String publicName;
@@ -24,8 +25,8 @@ public class Sample {
     private Periodicity periodicity;
 
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "sample")
-    @OrderBy
-    private List<SampleField> sampleFields;
+    @OrderBy("position asc")
+    private List<SampleField> sampleFields = new ArrayList<>();
 
     public Sample() {
     }
@@ -36,5 +37,10 @@ public class Sample {
         this.dayOfWeek = dayOfWeek;
         this.hasHospitalTable = hasHospitalTable;
         this.periodicity = periodicity;
+    }
+
+    public void insertSampleField(SampleField sampleField) {
+        sampleFields.add(sampleField);
+        sampleField.setSample(this);
     }
 }
