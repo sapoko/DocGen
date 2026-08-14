@@ -1,0 +1,18 @@
+spring:
+  application:
+    name: DocGen
+  datasource:
+    url: jdbc:postgresql://localhost:5432/doc_gen
+    username: postgres
+    password: ${DB_PASSWORD}
+  jpa:
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+server:
+  port: 8082
