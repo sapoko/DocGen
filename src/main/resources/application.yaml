@@ -12,6 +12,7 @@ spring:
         format_sql: true
     hibernate:
       ddl-auto: validate
+    open-in-view: false
   flyway:
     enabled: true
     placeholder-replacement: false
