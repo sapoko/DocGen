@@ -46,8 +46,7 @@ public class DocumentService {
         Sample sample = sampleRepository.findWithFieldsById(proceedGenerationRequest.sampleId())
                                         .orElseThrow(() -> new SampleNotFoundException(proceedGenerationRequest.sampleId()));
 
-//      TODO поправить как подключу Security!!!
-//      String username = SecurityContextHolder.getContext().getAuthentication().getName();
+//      TODO поправить как подключу Security. String username = SecurityContextHolder.getContext().getAuthentication().getName();
         String username = "Yan";
         User user = userRepository.findByUsernameAndActiveTrue(username)
                                   .orElseThrow(() -> new UserNotFoundException("Пользователь с именем " + username + " не найден."));

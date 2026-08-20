@@ -3,7 +3,7 @@ package Sapoko.docgen.sample;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -16,8 +16,18 @@ public class SampleService {
     }
 
     @Transactional(readOnly = true)
-    public List<SampleDto> getSamplesForDate(LocalDateTime date) {
+    public List<SampleDto> getSamplesForDate(LocalDate date) {
+        if (date == null) date = LocalDate.now();
         List<Sample> samples = sampleRepository.findSamplesByDayOfWeek((short) date.getDayOfWeek().getValue());
+
+        return samples.stream()
+                .map(this::toDto)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<SampleDto> getSamplesForPeriodicity(Periodicity periodicity) {
+        List<Sample> samples = sampleRepository.findSamplesByPeriodicity(periodicity);
 
         return samples.stream()
                 .map(this::toDto)
