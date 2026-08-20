@@ -1,6 +1,8 @@
 package Sapoko.docgen.document;
 
-public class DocumentNotFoundException extends RuntimeException {
+import Sapoko.docgen.common.NotFoundException;
+
+public class DocumentNotFoundException extends NotFoundException {
     public DocumentNotFoundException(long id) {
         super("Документ с id " + id + " не найден.");
     }

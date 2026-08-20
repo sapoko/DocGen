@@ -1,6 +1,8 @@
 package Sapoko.docgen.sample;
 
-public class SampleNotFoundException extends RuntimeException {
+import Sapoko.docgen.common.NotFoundException;
+
+public class SampleNotFoundException extends NotFoundException {
     public SampleNotFoundException(long id) {
         super("Шаблон с id " + id + " не найден.");
     }

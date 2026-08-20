@@ -1,6 +1,8 @@
 package Sapoko.docgen.signer;
 
-public class SignerNotFoundException extends RuntimeException {
+import Sapoko.docgen.common.NotFoundException;
+
+public class SignerNotFoundException extends NotFoundException {
     public SignerNotFoundException(Long id) {
         super("Подписант с id " + id + " не найден.");
     }
