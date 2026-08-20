@@ -1,26 +1,88 @@
 package Sapoko.docgen.document;
 
-import Sapoko.docgen.sample.FieldType;
-import Sapoko.docgen.sample.SampleField;
-import Sapoko.docgen.sample.SampleFieldDto;
+import Sapoko.docgen.generation.*;
+import Sapoko.docgen.sample.*;
 import Sapoko.docgen.signer.Signer;
 import Sapoko.docgen.signer.SignerDto;
+import Sapoko.docgen.signer.SignerNotFoundException;
+import Sapoko.docgen.signer.SignerRepository;
+import Sapoko.docgen.user.User;
+import Sapoko.docgen.user.UserNotFoundException;
+import Sapoko.docgen.user.UserRepository;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
+import java.nio.file.Path;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 @Service
 public class DocumentService {
     private final DocumentRepository documentRepository;
+    private final SampleRepository sampleRepository;
+    private final UserRepository userRepository;
+    private final SignerRepository signerRepository;
+    private final DocumentGenerator documentGenerator;
 
     private static final DateTimeFormatter DOC_FORMAT = DateTimeFormatter.ofPattern("«dd» MMMM yyyy г.", new Locale("ru"));
     private static final DateTimeFormatter HR_DOC_FORMAT = DateTimeFormatter.ofPattern("dd.MM.yyyy");
+    private final TemplatesProperties templatesProperties;
 
-    public DocumentService(DocumentRepository documentRepository) {
+    public DocumentService(DocumentRepository documentRepository, SampleRepository sampleRepository, UserRepository userRepository, SignerRepository signerRepository, DocumentGenerator documentGenerator, TemplatesProperties templatesProperties) {
         this.documentRepository = documentRepository;
+        this.sampleRepository = sampleRepository;
+        this.userRepository = userRepository;
+        this.signerRepository = signerRepository;
+        this.documentGenerator = documentGenerator;
+        this.templatesProperties = templatesProperties;
+    }
+
+    @Transactional
+    public GeneratedDocx generateDocument(ProceedGenerationRequest proceedGenerationRequest) {
+        Sample sample = sampleRepository.findWithFieldsById(proceedGenerationRequest.sampleId())
+                                        .orElseThrow(() -> new SampleNotFoundException(proceedGenerationRequest.sampleId()));
+
+//      TODO поправить как подключу Security!!!
+//      String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        String username = "Yan";
+        User user = userRepository.findByUsernameAndActiveTrue(username)
+                                  .orElseThrow(() -> new UserNotFoundException("Пользователь с именем " + username + " не найден."));
+        List<SampleField> sampleFields = sample.getSampleFields();
+
+        Document document = new Document(sample, user, LocalDateTime.now());
+
+        for (ValueFromForm value : proceedGenerationRequest.valueFromForm()) {
+            SampleField sampleField = sampleFields.stream()
+                .filter(sf -> sf.getId().equals(value.sampleFieldId()))
+                .findFirst().orElseThrow(() -> new SampleFieldNotFoundException(value.sampleFieldId()));
+
+            validateUserInput(value, sampleField);
+
+            Input input;
+            if (sampleField.getType() != FieldType.SIGNATORY) input = new Input(sampleField, null, value.value());
+            else input = new Input(sampleField, signerRepository.findById(value.signerId())
+                    .orElseThrow(() -> new SignerNotFoundException(value.signerId())), null);
+            document.insertInput(input);
+        }
+
+        int counter = 0;
+        for (HospitalRowFromForm hr : proceedGenerationRequest.hospitalRowFromForm()) {
+            HospitalRow hospitalRow = new HospitalRow(hr.fullName(), hr.hospitalTitle(), hr.admittedAt(),
+                                                      ++counter, hr.rank(), hr.platoon(), hr.diagnosis());
+            document.insertHospitalRow(hospitalRow);
+        }
+
+        documentRepository.saveAndFlush(document);
+
+        String fileName = sample.getPublicName() + " " + document.getCreatedAt().format(HR_DOC_FORMAT) + ".docx";
+
+        return new GeneratedDocx(fileName,
+                documentGenerator.generate(transformInputs(document), transformHospitalRows(document),
+                Path.of(templatesProperties.templatesPath()).resolve(sample.getFilePath())));
     }
 
     private Map<String, String> transformInputs(Document document) {
@@ -101,5 +163,17 @@ public class DocumentService {
                     hr.getPosition(), hr.getRank(), hr.getPlatoon(), hr.getDiagnosis()));
         }
         return new DocumentDto(document.getId(), document.getUser().getUsername(), inputDtos, hospitalRowDtos, document.getCreatedAt());
+    }
+
+    private void validateUserInput(ValueFromForm value, SampleField sampleField) {
+        if (sampleField.getType() == FieldType.SIGNATORY) {
+            if (StringUtils.hasText(value.value()) || value.signerId() == null) {
+                throw new InvalidInputValueException("Поле " + sampleField.getFormName() + " необходимо выбрать из справочника.");
+            }
+        } else {
+            if (!StringUtils.hasText(value.value()) || value.signerId() != null) {
+                throw new InvalidInputValueException("Поле " + sampleField.getFormName() + " обязано содержать значение.");
+            }
+        }
     }
 }
