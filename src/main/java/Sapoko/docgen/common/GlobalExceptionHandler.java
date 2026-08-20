@@ -7,6 +7,8 @@ import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -68,5 +70,10 @@ public class GlobalExceptionHandler {
         return new ErrorResponse("Ошибка сервера", Instant.now(), null);
     }
 
-    // TODO добавить хендрели на security как введу его, плюс добавить хендлер на HttpMessageNotReadableException
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErrorResponse handleHttpParsing(HttpMessageNotReadableException e) {
+        log.warn(e.getMessage());
+        return new ErrorResponse(e.getMessage(), Instant.now(), null);
+    }
 }

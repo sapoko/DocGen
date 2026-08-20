@@ -1,0 +1,1 @@
+INSERT INTO users (username, password_hash, active) VALUES ('Yan', '$2a$10$2.kLkJunBTHKAqhYLOqD5OKkKW.EZhFkVmXyhY/E85.eLp.H3prqm', true)
