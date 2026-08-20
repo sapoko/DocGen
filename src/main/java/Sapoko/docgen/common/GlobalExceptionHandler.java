@@ -13,6 +13,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -74,6 +75,13 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ErrorResponse handleHttpParsing(HttpMessageNotReadableException e) {
         log.warn(e.getMessage());
-        return new ErrorResponse(e.getMessage(), Instant.now(), null);
+        return new ErrorResponse("Ошибка парсинга строки", Instant.now(), null);
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErrorResponse handleEnumMismatch(MethodArgumentTypeMismatchException e) {
+        log.warn(e.getMessage());
+        return new ErrorResponse("Ошибка валидации данных, проверьте правописание WEEKLY", Instant.now(), null);
     }
 }
