@@ -32,8 +32,7 @@ public class Input {
     public Input() {
     }
 
-    public Input(Document document, SampleField sampleField, Signer signer, String value) {
-        this.document = document;
+    public Input(SampleField sampleField, Signer signer, String value) {
         this.sampleField = sampleField;
         this.signer = signer;
         this.value = value;

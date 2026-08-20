@@ -16,5 +16,10 @@ spring:
   flyway:
     enabled: true
     placeholder-replacement: false
+
 server:
   port: 8082
+
+app:
+  templates:
+    templates-path: ${TEMPLATES_PATH}

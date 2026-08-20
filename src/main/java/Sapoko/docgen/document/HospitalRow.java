@@ -17,8 +17,8 @@ public class HospitalRow {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "document_id")
-    private Document document
-            ;
+    private Document document;
+
     private String fullName;
     private String hospitalTitle;
     private LocalDate admittedAt;
@@ -33,8 +33,7 @@ public class HospitalRow {
     public HospitalRow() {
     }
 
-    public HospitalRow(Document document, String fullName, String hospitalTitle, LocalDate admittedAt, Integer position, String rank, String platoon, String diagnosis) {
-        this.document = document;
+    public HospitalRow(String fullName, String hospitalTitle, LocalDate admittedAt, Integer position, String rank, String platoon, String diagnosis) {
         this.fullName = fullName;
         this.hospitalTitle = hospitalTitle;
         this.admittedAt = admittedAt;
