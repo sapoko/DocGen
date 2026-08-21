@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>DocGen</title>
+    <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+
+<header class="topbar">
+    <div class="topbar-brand">DocGen</div>
+    <nav class="topbar-nav">
+        <a href="/signers.html" class="btn-top">Подписанты</a>
+        <button id="logout" class="btn-top" type="button">Выйти</button>
+    </nav>
+</header>
+
+<div id="alert" class="alert-bar" hidden></div>
+
+<main class="page">
+
+    <div class="datebar">
+        <div class="datebar-left">
+            <span class="date-display" id="weekday">—</span>
+            <input type="date" id="date" class="date-input">
+        </div>
+        <div class="datebar-right">
+            <button id="today" class="btn btn-ghost" type="button">Сегодня</button>
+        </div>
+    </div>
+
+    <div class="content-grid">
+
+        <aside class="card">
+            <div class="card-head">
+                <span>Документы</span>
+                <span class="count" id="doc-count"></span>
+            </div>
+            <div id="doc-list">
+                <div class="empty">Загрузка…</div>
+            </div>
+        </aside>
+
+        <section class="card">
+            <div class="card-head">
+                <span id="form-title">Форма</span>
+                <button id="prefill" class="btn btn-ghost" type="button" disabled>Как в прошлый раз</button>
+            </div>
+            <div class="card-body" id="form-body">
+                <div class="empty">Выберите документ слева</div>
+            </div>
+        </section>
+
+    </div>
+</main>
+
+<script src="/app.js"></script>
+</body>
+</html>

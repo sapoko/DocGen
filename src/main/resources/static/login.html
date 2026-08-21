@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Вход — DocGen</title>
+    <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+
+<header class="topbar">
+    <div class="topbar-brand">DocGen</div>
+</header>
+
+<div id="alert" class="alert-bar danger" hidden></div>
+
+<main class="login-page">
+    <div class="card login-card">
+        <div class="card-head"><span>Вход</span></div>
+        <div class="card-body">
+            <form id="login-form" method="post" action="/login">
+                <div class="field">
+                    <label for="username">Логин</label>
+                    <input type="text" id="username" name="username" autocomplete="username" autofocus required>
+                </div>
+                <div class="field">
+                    <label for="password">Пароль</label>
+                    <input type="password" id="password" name="password" autocomplete="current-password" required>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Войти</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</main>
+
+<script>
+    // Spring Security ждёт обычную form-urlencoded отправку на /login.
+    // CSRF-токен лежит в cookie XSRF-TOKEN и уходит заголовком.
+    const alertBox = document.getElementById('alert');
+
+    if (new URLSearchParams(location.search).has('error')) {
+        alertBox.textContent = 'Неверный логин или пароль';
+        alertBox.hidden = false;
+    }
+    if (new URLSearchParams(location.search).has('logout')) {
+        alertBox.className = 'alert-bar success';
+        alertBox.textContent = 'Вы вышли из системы';
+        alertBox.hidden = false;
+    }
+
+    function csrfToken() {
+        const match = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/);
+        return match ? decodeURIComponent(match[1]) : null;
+    }
+
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const token = csrfToken();
+        if (!token) {
+            alertBox.className = 'alert-bar danger';
+            alertBox.textContent = 'Нет CSRF-токена. Проверьте настройку CookieCsrfTokenRepository на сервере.';
+            alertBox.hidden = false;
+            return;
+        }
+
+        const body = new URLSearchParams({
+            username: document.getElementById('username').value,
+            password: document.getElementById('password').value
+        });
+
+        const res = await fetch('/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-XSRF-TOKEN': token
+            },
+            body
+        });
+
+        // Успех и провал одинаково приходят редиректом, различаем по итоговому адресу.
+        if (res.url.includes('error')) {
+            location.href = '/login.html?error';
+        } else {
+            location.href = '/index.html';
+        }
+    });
+</script>
+</body>
+</html>

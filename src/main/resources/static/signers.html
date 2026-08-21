@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Подписанты — DocGen</title>
+    <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+
+<header class="topbar">
+    <div class="topbar-brand">DocGen</div>
+    <nav class="topbar-nav">
+        <a href="/index.html" class="btn-top">Документы</a>
+        <button id="logout" class="btn-top" type="button">Выйти</button>
+    </nav>
+</header>
+
+<div id="alert" class="alert-bar" hidden></div>
+
+<main class="page">
+    <div class="content-grid">
+
+        <aside class="card">
+            <div class="card-head">
+                <span>Справочник</span>
+                <span class="count" id="signer-count"></span>
+            </div>
+            <div id="signer-list">
+                <div class="empty">Загрузка…</div>
+            </div>
+        </aside>
+
+        <section class="card">
+            <div class="card-head">
+                <span id="form-title">Новый подписант</span>
+                <button id="new" class="btn btn-ghost" type="button">+ Добавить</button>
+            </div>
+            <div class="card-body" id="form-body"></div>
+        </section>
+
+    </div>
+</main>
+
+<script src="/signers.js"></script>
+</body>
+</html>
