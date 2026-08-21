@@ -2,10 +2,7 @@ package Sapoko.docgen.document;
 
 import Sapoko.docgen.generation.*;
 import Sapoko.docgen.sample.*;
-import Sapoko.docgen.signer.Signer;
-import Sapoko.docgen.signer.SignerDto;
-import Sapoko.docgen.signer.SignerNotFoundException;
-import Sapoko.docgen.signer.SignerRepository;
+import Sapoko.docgen.signer.*;
 import Sapoko.docgen.user.User;
 import Sapoko.docgen.user.UserNotFoundException;
 import Sapoko.docgen.user.UserRepository;
@@ -31,14 +28,16 @@ public class DocumentService {
     private static final DateTimeFormatter DOC_FORMAT = DateTimeFormatter.ofPattern("«dd» MMMM yyyy г.", new Locale("ru"));
     private static final DateTimeFormatter HR_DOC_FORMAT = DateTimeFormatter.ofPattern("dd.MM.yyyy");
     private final TemplatesProperties templatesProperties;
+    private final SignerService signerService;
 
-    public DocumentService(DocumentRepository documentRepository, SampleRepository sampleRepository, UserRepository userRepository, SignerRepository signerRepository, DocumentGenerator documentGenerator, TemplatesProperties templatesProperties) {
+    public DocumentService(DocumentRepository documentRepository, SampleRepository sampleRepository, UserRepository userRepository, SignerRepository signerRepository, DocumentGenerator documentGenerator, TemplatesProperties templatesProperties, SignerService signerService) {
         this.documentRepository = documentRepository;
         this.sampleRepository = sampleRepository;
         this.userRepository = userRepository;
         this.signerRepository = signerRepository;
         this.documentGenerator = documentGenerator;
         this.templatesProperties = templatesProperties;
+        this.signerService = signerService;
     }
 
     @Transactional
@@ -104,9 +103,16 @@ public class DocumentService {
 
                 case SIGNATORY -> {
                     Signer signer = input.getSigner();
+
                     result.put(sf.getPlaceholder() + ".post", signer.getPost());
-                    result.put(sf.getPlaceholder() + ".rank", signer.getRank());
-                    result.put(sf.getPlaceholder() + ".fullName", signer.getFullName());
+                    result.put(sf.getPlaceholder() + ".rank", signer.getRankNom());
+                    result.put(sf.getPlaceholder() + ".rank.gen", signer.getRankGen());
+                    result.put(sf.getPlaceholder() + ".rank.ins", signer.getRankIns());
+                    result.put(sf.getPlaceholder() + ".smallRank", signer.getRankShort());
+                    result.put(sf.getPlaceholder() + ".fullName", signer.formatFullName());
+                    result.put(sf.getPlaceholder() + ".fullName.gen", signer.getLastNameGen() + " " + signer.getGivenNamesGen());
+                    result.put(sf.getPlaceholder() + ".fullName.ins", signer.formatWithInitialsIns());
+                    result.put(sf.getPlaceholder() + ".midName", signer.formatWithInitialsNom());
                 }
             }
         }
@@ -150,7 +156,7 @@ public class DocumentService {
             SignerDto signerDto;
             if (sf.getType() == FieldType.SIGNATORY) {
                 Signer signer = i.getSigner();
-                signerDto = new SignerDto(signer.getId(), signer.getFullName(), signer.getRank(), signer.getPost(), signer.getBossGroup());
+                signerDto = signerService.toDto(signer);
             } else {
                 signerDto = null;
             }
