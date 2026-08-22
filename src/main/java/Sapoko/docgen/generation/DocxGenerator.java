@@ -1,8 +1,8 @@
 package Sapoko.docgen.generation;
 
 import org.apache.poi.xwpf.usermodel.*;
+import org.apache.xmlbeans.XmlCursor;
 import org.apache.xmlbeans.XmlObject;
-import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTP;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTRow;
 import org.springframework.stereotype.Component;
 
@@ -11,7 +11,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -22,18 +21,24 @@ import java.util.regex.Pattern;
 /**
  * Реализация генерации .docx поверх Apache POI.
  *
- * Особенность формата: Word хранит текст параграфа не одной строкой, а набором
- * run'ов — фрагментов с одинаковым форматированием. Плейсхолдер почти всегда
- * оказывается разрезан между несколькими run'ами (${signer.post} лежит как
- * '${' + 'signer' + '.' + 'post' + '}'), поэтому поиск внутри отдельного run
- * не находит ничего. Здесь текст параграфа склеивается, замена ищется в целой
- * строке, а результат раскладывается обратно по run'ам — так сохраняется
- * форматирование каждого фрагмента.
+ * Две особенности формата, из-за которых наивная замена не работает.
  *
- * Госпитальная таблица: строка-образец определяется по плейсхолдеру ${position}
- * в одной из ячеек. Она клонируется по числу переданных строк и заполняется
- * позиционно — порядок значений в List<String> должен совпадать с порядком
- * колонок в шаблоне.
+ * 1. Word хранит текст параграфа не одной строкой, а набором фрагментов
+ *    с одинаковым форматированием (run). Плейсхолдер почти всегда разрезан
+ *    между ними: ${signer.post} лежит как '${' + 'signer' + '.' + 'post' + '}'.
+ *    Поэтому текст склеивается, замена ищется в целой строке, а результат
+ *    раскладывается обратно по фрагментам — так сохраняется форматирование.
+ *
+ * 2. Блоки подписи в части шаблонов лежат в надписях (текстовых полях).
+ *    Обычный обход getParagraphs() / getTables() до них не доходит, а типы
+ *    внутри mc:AlternateContent при урезанном наборе схем (poi-ooxml-lite)
+ *    не распознаются — поэтому там работаем через XmlCursor, которому
+ *    типы не нужны.
+ *
+ * Госпитальная таблица: строка-образец определяется по плейсхолдеру
+ * ${position} в одной из ячеек. Она клонируется по числу переданных строк
+ * и заполняется позиционно — порядок значений в List<String> должен
+ * совпадать с порядком колонок в шаблоне.
  */
 @Component
 public class DocxGenerator implements DocumentGenerator {
@@ -43,14 +48,14 @@ public class DocxGenerator implements DocumentGenerator {
     /** По этому плейсхолдеру ищется строка-образец госпитальной таблицы. */
     private static final String TABLE_ROW_MARKER = "${position}";
 
-    /**
-     * Блоки подписи в части шаблонов лежат в надписях (текстовых полях Word).
-     * Обычный обход doc.getParagraphs() / getTables() до них не доходит —
-     * приходится доставать их из XML напрямую.
-     */
-    private static final String TEXTBOX_PARAGRAPHS =
-            "declare namespace w='http://schemas.openxmlformats.org/wordprocessingml/2006/main' "
-          + ".//w:txbxContent//w:p";
+    private static final String W_NS =
+            "declare namespace w='http://schemas.openxmlformats.org/wordprocessingml/2006/main' ";
+
+    /** Параграфы внутри надписей. */
+    private static final String TEXTBOX_PARAGRAPHS = W_NS + ".//w:txbxContent//w:p";
+
+    /** Текстовые узлы внутри одного параграфа. */
+    private static final String TEXT_NODES = W_NS + ".//w:t";
 
     @Override
     public byte[] generate(Map<String, String> placeholders,
@@ -143,7 +148,7 @@ public class DocxGenerator implements DocumentGenerator {
         }
     }
 
-    /** Записывает текст в ячейку, сохраняя форматирование первого run'а. */
+    /** Записывает текст в ячейку, сохраняя форматирование первого фрагмента. */
     private void setCellText(XWPFTableCell cell, String text) {
         List<XWPFParagraph> paragraphs = cell.getParagraphs();
 
@@ -177,29 +182,18 @@ public class DocxGenerator implements DocumentGenerator {
         for (XWPFTable t : doc.getTables()) {
             replaceInTable(t, values);
         }
-        for (XWPFParagraph p : textBoxParagraphs(doc)) {
-            replaceInParagraph(p, values);
-        }
+        replaceInTextBoxes(doc.getDocument().getBody(), values);
+
         for (XWPFHeader h : doc.getHeaderList()) {
             h.getParagraphs().forEach(p -> replaceInParagraph(p, values));
             h.getTables().forEach(t -> replaceInTable(t, values));
+            replaceInTextBoxes(h._getHdrFtr(), values);
         }
         for (XWPFFooter f : doc.getFooterList()) {
             f.getParagraphs().forEach(p -> replaceInParagraph(p, values));
             f.getTables().forEach(t -> replaceInTable(t, values));
+            replaceInTextBoxes(f._getHdrFtr(), values);
         }
-    }
-
-    /** Параграфы внутри надписей. Word дублирует их содержимое (современная
-     *  версия + запасная для старых редакторов) — обрабатываются обе копии. */
-    private List<XWPFParagraph> textBoxParagraphs(XWPFDocument doc) {
-        List<XWPFParagraph> found = new ArrayList<>();
-        for (XmlObject obj : doc.getDocument().getBody().selectPath(TEXTBOX_PARAGRAPHS)) {
-            if (obj instanceof CTP ctp) {
-                found.add(new XWPFParagraph(ctp, doc));
-            }
-        }
-        return found;
     }
 
     private void replaceInTable(XWPFTable table, Map<String, String> values) {
@@ -211,11 +205,6 @@ public class DocxGenerator implements DocumentGenerator {
         }
     }
 
-    /**
-     * Ядро замены. Склеивает текст run'ов в одну строку, ищет плейсхолдеры в ней,
-     * затем раскладывает результат обратно: каждый символ возвращается в тот run,
-     * которому принадлежал, а замена целиком уходит в run, где плейсхолдер начался.
-     */
     private void replaceInParagraph(XWPFParagraph paragraph, Map<String, String> values) {
         List<XWPFRun> runs = paragraph.getRuns();
         if (runs.isEmpty()) {
@@ -223,12 +212,69 @@ public class DocxGenerator implements DocumentGenerator {
         }
 
         String[] texts = new String[runs.size()];
-        int[] starts = new int[runs.size()];
-        StringBuilder joined = new StringBuilder();
-
         for (int i = 0; i < runs.size(); i++) {
             String t = runs.get(i).getText(0);
             texts[i] = t == null ? "" : t;
+        }
+
+        String[] replaced = applyReplacements(texts, values);
+        if (replaced == null) {
+            return;
+        }
+        for (int i = 0; i < runs.size(); i++) {
+            runs.get(i).setText(replaced[i], 0);
+        }
+    }
+
+    /**
+     * Надписи. Типы узлов внутри mc:AlternateContent при урезанном наборе схем
+     * не распознаются, поэтому работаем курсором: он читает и пишет текст
+     * элемента, не зная его схемы.
+     */
+    private void replaceInTextBoxes(XmlObject root, Map<String, String> values) {
+        for (XmlObject paragraph : root.selectPath(TEXTBOX_PARAGRAPHS)) {
+            XmlObject[] nodes = paragraph.selectPath(TEXT_NODES);
+            if (nodes.length == 0) {
+                continue;
+            }
+
+            XmlCursor[] cursors = new XmlCursor[nodes.length];
+            try {
+                String[] texts = new String[nodes.length];
+                for (int i = 0; i < nodes.length; i++) {
+                    cursors[i] = nodes[i].newCursor();
+                    String t = cursors[i].getTextValue();
+                    texts[i] = t == null ? "" : t;
+                }
+
+                String[] replaced = applyReplacements(texts, values);
+                if (replaced != null) {
+                    for (int i = 0; i < nodes.length; i++) {
+                        cursors[i].setTextValue(replaced[i]);
+                    }
+                }
+            } finally {
+                for (XmlCursor cursor : cursors) {
+                    if (cursor != null) {
+                        cursor.dispose();
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Ядро замены. Склеивает фрагменты в одну строку, ищет плейсхолдеры в ней,
+     * затем раскладывает результат обратно: каждый символ возвращается в тот
+     * фрагмент, которому принадлежал, а замена целиком уходит в фрагмент,
+     * где плейсхолдер начался.
+     *
+     * @return новые тексты фрагментов или null, если менять нечего
+     */
+    private String[] applyReplacements(String[] texts, Map<String, String> values) {
+        int[] starts = new int[texts.length];
+        StringBuilder joined = new StringBuilder();
+        for (int i = 0; i < texts.length; i++) {
             starts[i] = joined.length();
             joined.append(texts[i]);
         }
@@ -236,7 +282,7 @@ public class DocxGenerator implements DocumentGenerator {
         String full = joined.toString();
         Matcher matcher = PLACEHOLDER.matcher(full);
 
-        StringBuilder[] result = new StringBuilder[runs.size()];
+        StringBuilder[] result = new StringBuilder[texts.length];
         for (int i = 0; i < result.length; i++) {
             result[i] = new StringBuilder();
         }
@@ -247,43 +293,45 @@ public class DocxGenerator implements DocumentGenerator {
         while (matcher.find()) {
             String replacement = values.get(matcher.group(1));
             if (replacement == null) {
-                continue; // не наш плейсхолдер — оставляем как есть, поймает failOnUnresolved
+                continue; // не наш плейсхолдер — поймает failOnUnresolved
             }
             copyRange(full, pos, matcher.start(), starts, texts, result);
-            result[runIndexAt(starts, texts, matcher.start())].append(replacement);
+            result[fragmentAt(starts, texts, matcher.start())].append(replacement);
             pos = matcher.end();
             changed = true;
         }
 
         if (!changed) {
-            return;
+            return null;
         }
 
         copyRange(full, pos, full.length(), starts, texts, result);
 
-        for (int i = 0; i < runs.size(); i++) {
-            runs.get(i).setText(result[i].toString(), 0);
+        String[] out = new String[texts.length];
+        for (int i = 0; i < texts.length; i++) {
+            out[i] = result[i].toString();
         }
+        return out;
     }
 
-    /** Переносит участок [from, to) исходной строки в те run'ы, которым он принадлежал. */
+    /** Переносит участок [from, to) исходной строки в те фрагменты, которым он принадлежал. */
     private void copyRange(String full, int from, int to,
                            int[] starts, String[] texts, StringBuilder[] result) {
         if (from >= to) {
             return;
         }
         for (int i = 0; i < texts.length; i++) {
-            int runStart = starts[i];
-            int runEnd = runStart + texts[i].length();
-            int overlapStart = Math.max(from, runStart);
-            int overlapEnd = Math.min(to, runEnd);
+            int fragmentStart = starts[i];
+            int fragmentEnd = fragmentStart + texts[i].length();
+            int overlapStart = Math.max(from, fragmentStart);
+            int overlapEnd = Math.min(to, fragmentEnd);
             if (overlapStart < overlapEnd) {
                 result[i].append(full, overlapStart, overlapEnd);
             }
         }
     }
 
-    private int runIndexAt(int[] starts, String[] texts, int position) {
+    private int fragmentAt(int[] starts, String[] texts, int position) {
         for (int i = 0; i < texts.length; i++) {
             if (position >= starts[i] && position < starts[i] + texts[i].length()) {
                 return i;
@@ -298,11 +346,12 @@ public class DocxGenerator implements DocumentGenerator {
 
     /**
      * Плейсхолдер, оставшийся в документе, означает рассогласование шаблона
-     * и метаданных в sample_fields. Лучше узнать сразу, чем выдать человеку
-     * документ с ${signer2.post} посреди подписи.
+     * и метаданных в sample_fields — либо что до какой-то части документа
+     * замена не добралась. Лучше узнать сразу, чем выдать человеку документ
+     * с ${signer2.post} посреди подписи.
      *
      * Проверяем по сырому XML со снятыми тегами: так видно всё, включая
-     * надписи, и заодно склеиваются плейсхолдеры, разрезанные между run'ами.
+     * надписи, и заодно склеиваются плейсхолдеры, разрезанные между фрагментами.
      */
     private void failOnUnresolved(XWPFDocument doc, Path templatePath) {
         StringBuilder xml = new StringBuilder(doc.getDocument().xmlText());

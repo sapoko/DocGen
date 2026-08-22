@@ -5,5 +5,6 @@ public enum FieldType {
     DATE,
     NUMBER,
     SIGNATORY,
-    WEEK_START
+    WEEK_START,
+    OPTIONAL_NUMBER
 }

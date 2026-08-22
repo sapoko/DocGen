@@ -114,6 +114,17 @@ public class DocumentService {
                     result.put(sf.getPlaceholder() + ".fullName.ins", signer.formatWithInitialsIns());
                     result.put(sf.getPlaceholder() + ".midName", signer.formatWithInitialsNom());
                 }
+
+                case OPTIONAL_NUMBER -> {
+                    String fragment;
+                    if (input.getValue().trim().equals("0")) {
+                        fragment = "";
+                    } else {
+                        fragment = ", " + sf.getFormName().trim().toLowerCase() + " – " + input.getValue();
+                    }
+
+                    result.put(sf.getPlaceholder(), fragment);
+                }
             }
         }
 

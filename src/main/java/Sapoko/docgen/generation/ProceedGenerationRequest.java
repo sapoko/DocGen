@@ -14,7 +14,6 @@ public record ProceedGenerationRequest(
         @NotEmpty(message = "Поле не может содержать пустой список")
         List<ValueFromForm> valueFromForm,
 
-        @NotEmpty(message = "Поле не может содержать пустой список")
         List<HospitalRowFromForm> hospitalRowFromForm
 ) {
 }
