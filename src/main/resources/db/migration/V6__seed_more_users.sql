@@ -1,0 +1,2 @@
+INSERT INTO users (username, password_hash, active) VALUES ('Пушкарев', '$2a$10$Q3pWSMJMEP.J9uVWZ3RKW.tPKboX8DUoPUO0qNtqMNimpCHFh22eK', true);
+INSERT INTO users (username, password_hash, active) VALUES ('Алейников', '$2a$10$lV1S2pGuWf5C78gEWVs0p.ToSajo2UFp/AT88ctapCphSzieXudnu', true);
