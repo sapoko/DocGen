@@ -9,7 +9,7 @@ public record SignerRequest(
         String rankShort,
 
         @NotNull(message = "Поле не должно быть пустым")
-        @Size(max = 100, message = "Размер поля должен быть <= 100")
+        @Size(max = 255, message = "Размер поля должен быть <= 255")
         String post,
 
         @NotNull(message = "Поле не должно быть пустым")
